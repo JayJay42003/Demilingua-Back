@@ -6,14 +6,14 @@ import java.sql.*;
 import java.util.*;
 
 @RestController
-@RequestMapping("/api/users")
-public class UserController {
+@RequestMapping("/api/idiomas")
+public class IdiomaController {
 
-    // LEER (Todos o por ID)
+    // LEER (Todos)
     @GetMapping
     public List<Map<String, String>> getAll() {
-        List<Map<String, String>> users = new ArrayList<>();
-        String sql = "SELECT id, nombre, correo, vidas, racha_actual, division_id FROM usuario";
+        List<Map<String, String>> lista = new ArrayList<>();
+        String sql = "SELECT id, nombre FROM idioma";
         try (Connection c = DBConfig.getConnection();
              PreparedStatement ps = c.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
@@ -21,42 +21,35 @@ public class UserController {
                 Map<String, String> row = new HashMap<>();
                 row.put("id", String.valueOf(rs.getInt("id")));
                 row.put("nombre", rs.getString("nombre"));
-                row.put("correo", rs.getString("correo"));
-                row.put("vidas", String.valueOf(rs.getInt("vidas")));
-                row.put("racha_actual", String.valueOf(rs.getInt("racha_actual")));
-                users.add(row);
+                lista.add(row);
             }
         } catch (SQLException e) { e.printStackTrace(); }
-        return users;
+        return lista;
     }
 
-    // CREAR (Registro básico)
+    // CREAR
     @PostMapping
-    public Map<String, String> create(@RequestParam("nombre") String nombre, @RequestParam("correo") String correo, @RequestParam("contrasena") String contrasena) {
+    public Map<String, String> create(@RequestParam("nombre") String nombre) {
         Map<String, String> res = new HashMap<>();
-        // NOTA: Aquí deberías usar BCrypt para hashear la contraseña antes de guardarla
-        String sql = "INSERT INTO usuario (nombre, correo, contrasena, division_id) VALUES (?, ?, ?, 1)";
+        String sql = "INSERT INTO idioma (nombre) VALUES (?)";
         try (Connection c = DBConfig.getConnection();
              PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setString(1, nombre);
-            ps.setString(2, correo);
-            ps.setString(3, contrasena);
             ps.executeUpdate();
             res.put("status", "ok");
         } catch (SQLException e) { res.put("status", "error"); }
         return res;
     }
 
-    // ACTUALIZAR (Ej: Cambiar nombre o correo)
+    // ACTUALIZAR
     @PutMapping("/{id}")
-    public Map<String, String> update(@PathVariable int id, @RequestParam("nombre") String nombre, @RequestParam("correo") String correo) {
+    public Map<String, String> update(@PathVariable int id, @RequestParam("nombre") String nombre) {
         Map<String, String> res = new HashMap<>();
-        String sql = "UPDATE usuario SET nombre = ?, correo = ? WHERE id = ?";
+        String sql = "UPDATE idioma SET nombre = ? WHERE id = ?";
         try (Connection c = DBConfig.getConnection();
              PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setString(1, nombre);
-            ps.setString(2, correo);
-            ps.setInt(3, id);
+            ps.setInt(2, id);
             ps.executeUpdate();
             res.put("status", "ok");
         } catch (SQLException e) { res.put("status", "error"); }
@@ -67,7 +60,7 @@ public class UserController {
     @DeleteMapping("/{id}")
     public Map<String, String> delete(@PathVariable int id) {
         Map<String, String> res = new HashMap<>();
-        String sql = "DELETE FROM usuario WHERE id = ?";
+        String sql = "DELETE FROM idioma WHERE id = ?";
         try (Connection c = DBConfig.getConnection();
              PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setInt(1, id);

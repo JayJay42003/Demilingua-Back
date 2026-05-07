@@ -6,85 +6,68 @@ import java.sql.*;
 import java.util.*;
 
 @RestController
-@RequestMapping("/api/gamificacion")
+@RequestMapping("/api/gamification")
 public class GamificationController {
 
-    @PostMapping("/vidas/restar")
-    public Map<String, String> restarVida(@RequestParam("usuarioId") int usuarioId) {
+    @GetMapping("/status/{usuarioId}")
+    public Map<String, String> getStatus(@PathVariable int usuarioId) {
         Map<String, String> res = new HashMap<>();
-        String sql = "UPDATE usuario SET vidas = GREATEST(vidas - 1, 0) WHERE id = ?";
+
+        String sqlUpdate = "UPDATE usuario SET vidas = 5, ultima_recarga = CURRENT_TIMESTAMP " +
+                "WHERE id = ? AND DATE(ultima_recarga) < CURDATE()";
+
+        String sqlSelect = "SELECT vidas, racha_actual, division_id FROM usuario WHERE id = ?";
+
+        try (Connection c = DBConfig.getConnection()) {
+            // Paso 1
+            try (PreparedStatement psUpdate = c.prepareStatement(sqlUpdate)) {
+                psUpdate.setInt(1, usuarioId);
+                psUpdate.executeUpdate();
+            }
+            // Paso 2
+            try (PreparedStatement psSelect = c.prepareStatement(sqlSelect)) {
+                psSelect.setInt(1, usuarioId);
+                ResultSet rs = psSelect.executeQuery();
+                if (rs.next()) {
+                    res.put("vidas", String.valueOf(rs.getInt("vidas")));
+                    res.put("racha", String.valueOf(rs.getInt("racha_actual")));
+                    res.put("division_id", String.valueOf(rs.getInt("division_id")));
+                }
+            }
+        } catch (SQLException e) { e.printStackTrace(); }
+        return res;
+    }
+
+    @PostMapping("/perder-vida")
+    public Map<String, String> perderVida(@RequestParam("usuarioId") int usuarioId) {
+        Map<String, String> res = new HashMap<>();
+        String sql = "UPDATE usuario SET vidas = vidas - 1 WHERE id = ? AND vidas > 0";
 
         try (Connection c = DBConfig.getConnection();
              PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setInt(1, usuarioId);
+            int filas = ps.executeUpdate();
+            res.put("status", filas > 0 ? "ok" : "sin_vidas");
+        } catch (SQLException e) { res.put("status", "error"); }
+        return res;
+    }
+
+    // ACTUALIZAR PUNTOS (Al ganar XP)
+    @PostMapping("/add-xp")
+    public Map<String, String> addXp(@RequestParam("usuarioId") int uId, @RequestParam("idiomaId") int iId, @RequestParam("puntos") int pts) {
+        Map<String, String> res = new HashMap<>();
+        String sql = "INSERT INTO usuario_idioma (usuario_id, idioma_id, puntos) VALUES (?, ?, ?) " +
+                "ON DUPLICATE KEY UPDATE puntos = puntos + ?";
+
+        try (Connection c = DBConfig.getConnection();
+             PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setInt(1, uId);
+            ps.setInt(2, iId);
+            ps.setInt(3, pts);
+            ps.setInt(4, pts);
             ps.executeUpdate();
             res.put("status", "ok");
-        } catch (SQLException e) {
-            res.put("status", "error");
-            res.put("message", e.getMessage());
-        }
-        return res;
-    }
-
-    @PostMapping("/rachas/actualizar")
-    public Map<String, String> actualizarRacha(@RequestParam("usuarioId") int usuarioId, @RequestParam("xp") int xp) {
-        Map<String, String> res = new HashMap<>();
-        String sqlUsuario = "UPDATE usuario SET racha_actual = racha_actual + 1 WHERE id = ?";
-        String sqlRacha = "INSERT INTO racha_diaria (usuario_id, fecha, xp_ganado) VALUES (?, CURDATE(), ?)";
-
-        try (Connection c = DBConfig.getConnection()) {
-            try(PreparedStatement ps1 = c.prepareStatement(sqlUsuario)) {
-                ps1.setInt(1, usuarioId);
-                ps1.executeUpdate();
-            }
-            try(PreparedStatement ps2 = c.prepareStatement(sqlRacha)) {
-                ps2.setInt(1, usuarioId);
-                ps2.setInt(2, xp);
-                ps2.executeUpdate();
-            }
-            res.put("status", "ok");
-        } catch (SQLException e) {
-            res.put("status", "error");
-            res.put("message", e.getMessage());
-        }
-        return res;
-    }
-
-    @PostMapping("/evaluar-liga")
-    public Map<String, String> evaluarLiga(@RequestParam("usuarioId") int usuarioId) {
-        Map<String, String> res = new HashMap<>();
-        String sqlPuntos = "SELECT SUM(puntos) as total_xp FROM usuario_idioma WHERE usuario_id = ?";
-        String sqlDivision = "SELECT id FROM division WHERE xp_minimo <= ? ORDER BY xp_minimo DESC LIMIT 1";
-        String sqlUpdate = "UPDATE usuario SET division_id = ? WHERE id = ?";
-
-        try (Connection c = DBConfig.getConnection()) {
-            int totalXp = 0;
-            try(PreparedStatement ps1 = c.prepareStatement(sqlPuntos)) {
-                ps1.setInt(1, usuarioId);
-                ResultSet rs1 = ps1.executeQuery();
-                if (rs1.next()) totalXp = rs1.getInt("total_xp");
-            }
-
-            Integer nuevaDivisionId = null;
-            try(PreparedStatement ps2 = c.prepareStatement(sqlDivision)) {
-                ps2.setInt(1, totalXp);
-                ResultSet rs2 = ps2.executeQuery();
-                if (rs2.next()) nuevaDivisionId = rs2.getInt("id");
-            }
-
-            if (nuevaDivisionId != null) {
-                try(PreparedStatement ps3 = c.prepareStatement(sqlUpdate)) {
-                    ps3.setInt(1, nuevaDivisionId);
-                    ps3.setInt(2, usuarioId);
-                    ps3.executeUpdate();
-                }
-            }
-            res.put("status", "ok");
-            res.put("division_asignada", String.valueOf(nuevaDivisionId));
-        } catch (SQLException e) {
-            res.put("status", "error");
-            res.put("message", e.getMessage());
-        }
+        } catch (SQLException e) { res.put("status", "error"); }
         return res;
     }
 }

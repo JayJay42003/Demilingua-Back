@@ -1,98 +1,53 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package com.demilingua.backend.controllers;
 
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import com.demilingua.backend.DBConfig;
+import org.springframework.web.bind.annotation.*;
+import java.sql.*;
+import java.util.*;
 
-/**
- *
- * @author Joel
- */
 @RestController
-@RequestMapping("/api")
+@RequestMapping("/api/ranking")
 public class RankingController {
 
-    private final String DB_URL = "jdbc:mysql://localhost:3306/demilingua";
-    private final String DB_USER = "user";
-    private final String DB_PASS = "";
+    // LEER Ranking Global (Top 10 por racha o puntos totales)
+    @GetMapping("/global")
+    public List<Map<String, String>> getGlobalRanking() {
+        List<Map<String, String>> ranking = new ArrayList<>();
+        String sql = "SELECT u.nombre, u.racha_actual, d.nombre as division_nombre " +
+                "FROM usuario u JOIN division d ON u.division_id = d.id " +
+                "ORDER BY u.racha_actual DESC LIMIT 10";
 
-    
-    @GetMapping(value = "/ranking", produces = "application/json")
-    public List<Map<String, String>> getRanking() {
-
-        String sql = "SELECT u.nombre AS usuario, i.nombre AS idioma, ui.puntos AS puntos "
-           + "FROM usuario_idioma ui "
-           + "JOIN usuario u ON u.id = ui.usuario_id "
-           + "JOIN idioma  i ON i.id = ui.idioma_id "
-           + "ORDER BY i.nombre  ASC,"
-           + "ui.puntos DESC";
-
-
-        List<Map<String, String>> lista = new ArrayList<>();
-
-        try (Connection c = DriverManager.getConnection(DB_URL, DB_USER, DB_PASS); PreparedStatement ps = c.prepareStatement(sql); ResultSet rs = ps.executeQuery()) {
-
+        try (Connection c = DBConfig.getConnection();
+             PreparedStatement ps = c.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
                 Map<String, String> row = new HashMap<>();
-                row.put("usuario", rs.getString("usuario"));
-                row.put("idioma", rs.getString("idioma"));
-                row.put("puntos", String.valueOf(rs.getInt("puntos")));
-                lista.add(row);
+                row.put("nombre", rs.getString("nombre"));
+                row.put("racha", String.valueOf(rs.getInt("racha_actual")));
+                row.put("division", rs.getString("division_nombre"));
+                ranking.add(row);
             }
-
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
-        return lista;
+        } catch (SQLException e) { e.printStackTrace(); }
+        return ranking;
     }
 
-    @RestController
-    @RequestMapping("/api")
-    public class PuntosController {
+    // LEER Usuarios de una misma división
+    @GetMapping("/division/{divisionId}")
+    public List<Map<String, String>> getRankingByDivision(@PathVariable int divisionId) {
+        List<Map<String, String>> ranking = new ArrayList<>();
+        String sql = "SELECT nombre, racha_actual FROM usuario WHERE division_id = ? ORDER BY racha_actual DESC";
 
-        private final String DB_URL = "jdbc:mysql://localhost:3306/demilingua";
-        private final String DB_USER = "user";
-        private final String DB_PASS = "";
-
-        
-        @PostMapping(value = "/puntos", produces = "application/json")
-        public Map<String, String> guardarPuntos(@RequestBody Map<String, Integer> body) {
-
-            int usuarioId = body.getOrDefault("usuarioId", 0);
-            int idiomaId = body.getOrDefault("idiomaId", 0);
-            int puntos = body.getOrDefault("puntos", 0);
-
-            String sql = "INSERT INTO usuario_idioma (usuario_id, idioma_id, puntos) VALUES (?,?,?) "
-                    + "ON DUPLICATE KEY UPDATE puntos = puntos + VALUES(puntos)";
-
-            try (Connection c = DriverManager.getConnection(DB_URL, DB_USER, DB_PASS); PreparedStatement ps = c.prepareStatement(sql)) {
-
-                ps.setInt(1, usuarioId);
-                ps.setInt(2, idiomaId);
-                ps.setInt(3, puntos);
-                ps.executeUpdate();
-
-            } catch (SQLException e) {
-                throw new RuntimeException(e);
+        try (Connection c = DBConfig.getConnection();
+             PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setInt(1, divisionId);
+            ResultSet rs = ps.executeQuery();
+            while (rs.next()) {
+                Map<String, String> row = new HashMap<>();
+                row.put("nombre", rs.getString("nombre"));
+                row.put("racha", String.valueOf(rs.getInt("racha_actual")));
+                ranking.add(row);
             }
-
-            return Map.of("status", "ok");
-        }
+        } catch (SQLException e) { e.printStackTrace(); }
+        return ranking;
     }
-
 }
