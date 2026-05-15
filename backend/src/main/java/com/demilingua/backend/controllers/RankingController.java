@@ -10,7 +10,7 @@ import java.util.*;
 public class RankingController {
 
     // LEER Ranking Global (Top 10 por racha o puntos totales)
-    @GetMapping("/global")
+    @GetMapping
     public List<Map<String, String>> getGlobalRanking() {
         List<Map<String, String>> ranking = new ArrayList<>();
         String sql = "SELECT u.nombre, u.racha_actual, d.nombre as division_nombre " +
