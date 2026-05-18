@@ -28,6 +28,7 @@ public class FriendshipController {
         return amigos;
     }
 
+
     // CREAR Solicitud de amistad
     @PostMapping
     public Map<String, String> addFriend(@RequestParam("usuarioId1") int id1, @RequestParam("usuarioId2") int id2) {
