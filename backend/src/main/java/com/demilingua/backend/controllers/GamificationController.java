@@ -52,7 +52,6 @@ public class GamificationController {
         return res;
     }
 
-    // ACTUALIZAR PUNTOS (Al ganar XP)
     @PostMapping("/add-xp")
     public Map<String, String> addXp(@RequestParam("usuarioId") int uId, @RequestParam("idiomaId") int iId, @RequestParam("puntos") int pts) {
         Map<String, String> res = new HashMap<>();
