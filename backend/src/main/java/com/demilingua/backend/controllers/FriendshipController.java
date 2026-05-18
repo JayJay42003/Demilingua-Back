@@ -9,11 +9,15 @@ import java.util.*;
 @RequestMapping("/api/friends")
 public class FriendshipController {
 
-    // LEER Amigos de un usuario
+    // LEER Amigos de un usuario (con nombres y puntos)
     @GetMapping("/{usuarioId}")
     public List<Map<String, String>> getFriends(@PathVariable int usuarioId) {
         List<Map<String, String>> amigos = new ArrayList<>();
-        String sql = "SELECT usuario_id_2 as amigo_id, estado FROM amistad WHERE usuario_id_1 = ?";
+        String sql = "SELECT a.usuario_id_2 as amigo_id, a.estado, u.nombre, " +
+                     "(SELECT COALESCE(SUM(puntos), 0) FROM progreso WHERE usuario_id = a.usuario_id_2) as puntos " +
+                     "FROM amistad a " +
+                     "JOIN usuario u ON a.usuario_id_2 = u.id " +
+                     "WHERE a.usuario_id_1 = ?";
         try (Connection c = DBConfig.getConnection();
              PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setInt(1, usuarioId);
@@ -22,6 +26,8 @@ public class FriendshipController {
                 Map<String, String> row = new HashMap<>();
                 row.put("amigo_id", String.valueOf(rs.getInt("amigo_id")));
                 row.put("estado", rs.getString("estado"));
+                row.put("nombre", rs.getString("nombre"));
+                row.put("puntos", String.valueOf(rs.getInt("puntos")));
                 amigos.add(row);
             }
         } catch (SQLException e) { e.printStackTrace(); }
