@@ -27,6 +27,7 @@ public class FriendshipService {
     public List<Map<String, String>> getFriends(int usuarioId) {
         List<Map<String, String>> result = new ArrayList<>();
         List<Amistad> friendships = amistadRepository.findAcceptedFriendships(usuarioId);
+        friendships.add((Amistad) amistadRepository.findPendingRequests(usuarioId));
 
         for (Amistad a : friendships) {
             Usuario amigo = (a.getUsuario1().getId() == usuarioId) ? a.getUsuario2() : a.getUsuario1();
@@ -36,8 +37,7 @@ public class FriendshipService {
             row.put("estado", a.getEstado().name());
             row.put("nombre", amigo.getNombre());
             
-            // Calcular puntos totales del amigo (Suma de puntos en todos sus idiomas)
-            row.put("puntos", "0"); 
+            row.put("puntos", "0");
             result.add(row);
         }
         return result;
